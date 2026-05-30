@@ -44,6 +44,7 @@ fn setup(mut commands: Commands) {
                 custom_size: Some(Vec2::new(50.0, 50.0)),
                 ..default()
             },
+            transform: Transform::from_xyz(0.0, 0.0, 1.0),
             ..default()
         },
         Player,
@@ -56,7 +57,7 @@ fn setup(mut commands: Commands) {
                 custom_size: Some(Vec2::new(30.0, 30.0)),
                 ..default()
             },
-            transform: Transform::from_xyz(200.0, 0.0, 0.0),
+            transform: Transform::from_xyz(200.0, 0.0, 1.0),
             ..default()
         },
         Bug,
@@ -65,10 +66,10 @@ fn setup(mut commands: Commands) {
 
 fn player_movement(
     keyboard_input: Res<ButtonInput<KeyCode>>,
-    mut query: Query<&mut Transform, With<Player>>,
+    mut player_query: Query<&mut Transform, With<Player>>,
     time: Res<Time>,
 ) {
-    let mut transform = query.single_mut();
+    let mut player_transform = player_query.single_mut();
     let mut direction = Vec3::ZERO;
 
     if keyboard_input.pressed(KeyCode::KeyW) {
@@ -85,7 +86,10 @@ fn player_movement(
     }
 
     let speed = 300.0;
-    transform.translation += direction.normalize_or_zero() * speed * time.delta_seconds();
+    player_transform.translation += direction.normalize_or_zero() * speed * time.delta_seconds();
+
+    player_transform.translation.x = player_transform.translation.x.clamp(-380.0, 380.0);
+    player_transform.translation.y = player_transform.translation.y.clamp(-280.0, 280.0);
 }
 
 fn collect_bug(
@@ -96,11 +100,11 @@ fn collect_bug(
 ) {
     let player_transform = player_query.single();
 
-    for (entity, bug_transform) in bug_query.iter() {
+    for (bug_entity, bug_transform) in bug_query.iter() {
         let distance = player_transform.translation.distance(bug_transform.translation);
 
-        if distance < 40.0 {
-            commands.entity(entity).despawn();
+        if distance < 45.0 {
+            commands.entity(bug_entity).despawn();
             score.0 += 1;
             println!("Score: {}", score.0);
         }
@@ -110,19 +114,21 @@ fn collect_bug(
 fn spawn_raindrops(
     mut commands: Commands,
     time: Res<Time>,
-    mut timer: ResMut<RainTimer>,
+    mut rain_timer: ResMut<RainTimer>,
 ) {
-    if timer.0.tick(time.delta()).just_finished() {
-        let x = time.elapsed_seconds().sin() * 300.0;
+    rain_timer.0.tick(time.delta());
+
+    if rain_timer.0.just_finished() {
+        let x = time.elapsed_seconds().sin() * 350.0;
 
         commands.spawn((
             SpriteBundle {
                 sprite: Sprite {
                     color: Color::rgba(0.3, 0.5, 1.0, 1.0),
-                    custom_size: Some(Vec2::new(10.0, 20.0)),
+                    custom_size: Some(Vec2::new(12.0, 25.0)),
                     ..default()
                 },
-                transform: Transform::from_xyz(x, 300.0, 0.0),
+                transform: Transform::from_xyz(x, 320.0, 1.0),
                 ..default()
             },
             Raindrop,
@@ -132,14 +138,14 @@ fn spawn_raindrops(
 
 fn move_raindrops(
     mut commands: Commands,
-    mut query: Query<(Entity, &mut Transform), With<Raindrop>>,
+    mut rain_query: Query<(Entity, &mut Transform), With<Raindrop>>,
     time: Res<Time>,
 ) {
-    for (entity, mut transform) in query.iter_mut() {
-        transform.translation.y -= 400.0 * time.delta_seconds();
+    for (rain_entity, mut rain_transform) in rain_query.iter_mut() {
+        rain_transform.translation.y -= 400.0 * time.delta_seconds();
 
-        if transform.translation.y < -350.0 {
-            commands.entity(entity).despawn();
+        if rain_transform.translation.y < -350.0 {
+            commands.entity(rain_entity).despawn();
         }
     }
 }
@@ -153,7 +159,7 @@ fn check_rain_collision(
     for rain_transform in rain_query.iter() {
         let distance = player_transform.translation.distance(rain_transform.translation);
 
-        if distance < 30.0 {
+        if distance < 35.0 {
             println!("Game over!");
             player_transform.translation = Vec3::ZERO;
             break;
