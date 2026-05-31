@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 
-// Components
 #[derive(Component)]
 struct Player;
 
@@ -13,23 +12,24 @@ struct Raindrop;
 #[derive(Component)]
 struct ScoreText;
 
-// Game over text tag
 #[derive(Component)]
 struct GameOverText;
 
-// Resources
+#[derive(Component)]
+struct InstructionText;
+
 #[derive(Resource)]
 struct Score(u32);
 
 #[derive(Resource)]
 struct RainTimer(Timer);
 
-// controls visibility duration
 #[derive(Resource)]
 struct GameOverTimer(Timer);
 
 fn main() {
     App::new()
+        .insert_resource(ClearColor(Color::rgb(0.05, 0.08, 0.2)))
         .add_plugins(DefaultPlugins)
         .insert_resource(Score(0))
         .insert_resource(RainTimer(Timer::from_seconds(0.2, TimerMode::Repeating)))
@@ -53,7 +53,6 @@ fn main() {
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
 
-    // Player
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -67,7 +66,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         Player,
     ));
 
-    // Multiple bugs
     let bug_positions = [
         Vec3::new(200.0, 0.0, 1.0),
         Vec3::new(-200.0, 100.0, 1.0),
@@ -91,7 +89,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ));
     }
 
-    // Score text
     commands.spawn((
         TextBundle {
             text: Text::from_section(
@@ -113,7 +110,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ScoreText,
     ));
 
-    // Game over text (hidden initially)
     commands.spawn((
         TextBundle {
             text: Text::from_section(
@@ -130,14 +126,34 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 left: Val::Px(200.0),
                 ..default()
             },
-            visibility: Visibility::Hidden, // ✅ hidden by default
+            visibility: Visibility::Hidden,
             ..default()
         },
         GameOverText,
     ));
+
+    commands.spawn((
+        TextBundle {
+            text: Text::from_section(
+                "WASD to move • collect bugs • avoid rain",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 22.0,
+                    color: Color::GRAY,
+                },
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(10.0),
+                left: Val::Px(100.0),
+                ..default()
+            },
+            ..default()
+        },
+        InstructionText,
+    ));
 }
 
-// Movement
 fn player_movement(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut player_query: Query<&mut Transform, With<Player>>,
@@ -166,7 +182,6 @@ fn player_movement(
     player_transform.translation.y = player_transform.translation.y.clamp(-280.0, 280.0);
 }
 
-// Collect bugs
 fn collect_bug(
     mut commands: Commands,
     mut score: ResMut<Score>,
@@ -186,18 +201,13 @@ fn collect_bug(
     }
 }
 
-// Update score UI
-fn update_score_text(
-    score: Res<Score>,
-    mut query: Query<&mut Text, With<ScoreText>>,
-) {
+fn update_score_text(score: Res<Score>, mut query: Query<&mut Text, With<ScoreText>>) {
     if score.is_changed() {
         let mut text = query.single_mut();
         text.sections[0].value = format!("Score: {}", score.0);
     }
 }
 
-// Rain spawn
 fn spawn_raindrops(
     mut commands: Commands,
     time: Res<Time>,
@@ -223,7 +233,6 @@ fn spawn_raindrops(
     }
 }
 
-// Move rain
 fn move_raindrops(
     mut commands: Commands,
     mut rain_query: Query<(Entity, &mut Transform), With<Raindrop>>,
@@ -238,7 +247,6 @@ fn move_raindrops(
     }
 }
 
-// Show Game Over + start timer
 fn check_rain_collision(
     mut player_query: Query<&mut Transform, (With<Player>, Without<Raindrop>)>,
     rain_query: Query<&Transform, (With<Raindrop>, Without<Player>)>,
@@ -253,19 +261,13 @@ fn check_rain_collision(
         if distance < 35.0 {
             println!("Game over!");
             player_transform.translation = Vec3::ZERO;
-
-            // Show text
             *text_query.single_mut() = Visibility::Visible;
-
-            // Restart timer
             game_over_timer.0.reset();
-
             break;
         }
     }
 }
 
-// Hide after 2 seconds
 fn update_game_over_text(
     time: Res<Time>,
     mut timer: ResMut<GameOverTimer>,
