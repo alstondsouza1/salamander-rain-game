@@ -1,24 +1,50 @@
 use bevy::prelude::*;
 
-// Components
-#[derive(Component)] struct Player;
-#[derive(Component)] struct Bug;
-#[derive(Component)] struct Raindrop;
-#[derive(Component)] struct ScoreText;
-#[derive(Component)] struct LivesText;
-#[derive(Component)] struct GameOverText;
-#[derive(Component)] struct InstructionText;
-#[derive(Component)] struct TitleText;
+#[derive(Component)]
+struct Player;
 
-// Resources
-#[derive(Resource)] struct Score(u32);
-#[derive(Resource)] struct Lives(u32);
-#[derive(Resource)] struct RainTimer(Timer);
-#[derive(Resource)] struct GameOverTimer(Timer);
-#[derive(Resource)] struct HitCooldown(Timer);
-#[derive(Resource)] struct GameWon(bool);
+#[derive(Component)]
+struct Bug;
 
-// 10 bug positions
+#[derive(Component)]
+struct Glow;
+
+#[derive(Component)]
+struct Raindrop;
+
+#[derive(Component)]
+struct ScoreText;
+
+#[derive(Component)]
+struct LivesText;
+
+#[derive(Component)]
+struct GameOverText;
+
+#[derive(Component)]
+struct InstructionText;
+
+#[derive(Component)]
+struct TitleText;
+
+#[derive(Resource)]
+struct Score(u32);
+
+#[derive(Resource)]
+struct Lives(u32);
+
+#[derive(Resource)]
+struct RainTimer(Timer);
+
+#[derive(Resource)]
+struct GameOverTimer(Timer);
+
+#[derive(Resource)]
+struct HitCooldown(Timer);
+
+#[derive(Resource)]
+struct GameWon(bool);
+
 const BUG_POSITIONS: [Vec3; 10] = [
     Vec3::new(-300.0, 200.0, 1.0),
     Vec3::new(-150.0, 220.0, 1.0),
@@ -66,67 +92,65 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
 
     commands.spawn((
-        TextBundle::from_section(
-            "Salamander Rain Dash",
-            TextStyle {
-                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font_size: 40.0,
-                color: Color::WHITE,
-            },
-        ).with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(10.0),
-            left: Val::Px(220.0),
-            ..default()
-        }),
-        TitleText,
-    ));
-
-    commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::GREEN,
-                custom_size: Some(Vec2::new(50.0, 50.0)),
+        TextBundle {
+            text: Text::from_section(
+                "Salamander Rain Dash",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 40.0,
+                    color: Color::WHITE,
+                },
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(10.0),
+                left: Val::Px(200.0),
                 ..default()
             },
             ..default()
         },
-        Player,
+        TitleText,
     ));
 
-    spawn_bugs(&mut commands);
-
     commands.spawn((
-        TextBundle::from_section(
-            "Score: 0",
-            TextStyle {
-                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font_size: 30.0,
-                color: Color::WHITE,
+        TextBundle {
+            text: Text::from_section(
+                "Score: 0",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 30.0,
+                    color: Color::WHITE,
+                },
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(60.0),
+                left: Val::Px(10.0),
+                ..default()
             },
-        ).with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(60.0),
-            left: Val::Px(10.0),
             ..default()
-        }),
+        },
         ScoreText,
     ));
 
     commands.spawn((
-        TextBundle::from_section(
-            "Lives: 3",
-            TextStyle {
-                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font_size: 30.0,
-                color: Color::WHITE,
+        TextBundle {
+            text: Text::from_section(
+                "Lives: 3",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 30.0,
+                    color: Color::WHITE,
+                },
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(100.0),
+                left: Val::Px(10.0),
+                ..default()
             },
-        ).with_style(Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(100.0),
-            left: Val::Px(10.0),
             ..default()
-        }),
+        },
         LivesText,
     ));
 
@@ -136,14 +160,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 "",
                 TextStyle {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 36.0,
+                    font_size: 34.0,
                     color: Color::WHITE,
                 },
             ),
             style: Style {
                 position_type: PositionType::Absolute,
                 top: Val::Px(150.0),
-                left: Val::Px(140.0),
+                left: Val::Px(130.0),
                 ..default()
             },
             visibility: Visibility::Hidden,
@@ -153,102 +177,126 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     ));
 
     commands.spawn((
-        TextBundle::from_section(
-            "WASD to move • collect bugs • avoid rain • Press R",
-            TextStyle {
-                font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                font_size: 22.0,
-                color: Color::GRAY,
+        TextBundle {
+            text: Text::from_section(
+                "WASD to move • collect 10 fireflies • avoid rain • Press R to restart",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 20.0,
+                    color: Color::GRAY,
+                },
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                bottom: Val::Px(10.0),
+                left: Val::Px(45.0),
+                ..default()
             },
-        ).with_style(Style {
-            position_type: PositionType::Absolute,
-            bottom: Val::Px(10.0),
-            left: Val::Px(80.0),
             ..default()
-        }),
+        },
         InstructionText,
     ));
+
+    commands.spawn((
+        SpriteBundle {
+            sprite: Sprite {
+                color: Color::GREEN,
+                custom_size: Some(Vec2::new(50.0, 50.0)),
+                ..default()
+            },
+            transform: Transform::from_xyz(0.0, 0.0, 2.0),
+            ..default()
+        },
+        Player,
+    ));
+
+    spawn_bugs(&mut commands);
 }
 
 fn spawn_bugs(commands: &mut Commands) {
     for pos in BUG_POSITIONS {
-        commands.spawn((
-            SpriteBundle {
-                sprite: Sprite {
-                    color: Color::YELLOW,
-                    custom_size: Some(Vec2::new(30.0, 30.0)),
+        commands
+            .spawn((
+                TransformBundle::from_transform(Transform::from_translation(pos)),
+                Bug,
+            ))
+            .with_children(|parent| {
+                parent.spawn((
+                    SpriteBundle {
+                        sprite: Sprite {
+                            color: Color::rgba(1.0, 1.0, 0.3, 0.25),
+                            custom_size: Some(Vec2::new(60.0, 60.0)),
+                            ..default()
+                        },
+                        transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                        ..default()
+                    },
+                    Glow,
+                ));
+
+                parent.spawn(SpriteBundle {
+                    sprite: Sprite {
+                        color: Color::YELLOW,
+                        custom_size: Some(Vec2::new(30.0, 30.0)),
+                        ..default()
+                    },
+                    transform: Transform::from_xyz(0.0, 0.0, 1.0),
                     ..default()
-                },
-                transform: Transform::from_translation(pos),
-                ..default()
-            },
-            Bug,
-        ));
+                });
+            });
     }
 }
 
-// Movement
 fn player_movement(
     input: Res<ButtonInput<KeyCode>>,
-    mut q: Query<&mut Transform, With<Player>>,
+    mut player_query: Query<&mut Transform, With<Player>>,
     time: Res<Time>,
+    lives: Res<Lives>,
+    won: Res<GameWon>,
 ) {
-    let mut t = q.single_mut();
-    let mut dir = Vec3::ZERO;
+    if lives.0 == 0 || won.0 {
+        return;
+    }
 
-    if input.pressed(KeyCode::KeyW) { dir.y += 1.0; }
-    if input.pressed(KeyCode::KeyS) { dir.y -= 1.0; }
-    if input.pressed(KeyCode::KeyA) { dir.x -= 1.0; }
-    if input.pressed(KeyCode::KeyD) { dir.x += 1.0; }
+    let mut player = player_query.single_mut();
+    let mut direction = Vec3::ZERO;
 
-    t.translation += dir.normalize_or_zero() * 300.0 * time.delta_seconds();
+    if input.pressed(KeyCode::KeyW) {
+        direction.y += 1.0;
+    }
+    if input.pressed(KeyCode::KeyS) {
+        direction.y -= 1.0;
+    }
+    if input.pressed(KeyCode::KeyA) {
+        direction.x -= 1.0;
+    }
+    if input.pressed(KeyCode::KeyD) {
+        direction.x += 1.0;
+    }
+
+    player.translation += direction.normalize_or_zero() * 300.0 * time.delta_seconds();
+    player.translation.x = player.translation.x.clamp(-380.0, 380.0);
+    player.translation.y = player.translation.y.clamp(-280.0, 280.0);
 }
 
-// Collect bugs
 fn collect_bug(
     mut commands: Commands,
     mut score: ResMut<Score>,
-    player: Query<&Transform, With<Player>>,
-    bugs: Query<(Entity, &Transform), With<Bug>>,
+    player_query: Query<&Transform, With<Player>>,
+    bug_query: Query<(Entity, &Transform), With<Bug>>,
+    lives: Res<Lives>,
+    won: Res<GameWon>,
 ) {
-    let p = player.single();
-    for (e, t) in bugs.iter() {
-        if p.translation.distance(t.translation) < 45.0 {
-            commands.entity(e).despawn();
+    if lives.0 == 0 || won.0 {
+        return;
+    }
+
+    let player = player_query.single();
+
+    for (bug_entity, bug_transform) in bug_query.iter() {
+        if player.translation.distance(bug_transform.translation) < 45.0 {
+            commands.entity(bug_entity).despawn_recursive();
             score.0 += 1;
-        }
-    }
-}
-
-fn check_win_condition(
-    score: Res<Score>,
-    mut text: Query<&mut Text, With<GameOverText>>,
-    mut vis: Query<&mut Visibility, With<GameOverText>>,
-    mut won: ResMut<GameWon>,
-) {
-    if score.0 >= 10 && !won.0 {
-        let mut t = text.single_mut();
-        t.sections[0].value = "You saved the salamander! Press R.".into();
-        t.sections[0].style.color = Color::GREEN;
-        *vis.single_mut() = Visibility::Visible;
-        won.0 = true;
-    }
-}
-
-// ✅ UPDATED: speed scales with score
-fn move_raindrops(
-    mut commands: Commands,
-    mut q: Query<(Entity, &mut Transform), With<Raindrop>>,
-    time: Res<Time>,
-    score: Res<Score>, // ✅ NEW
-) {
-    let speed = 400.0 + score.0 as f32 * 30.0;
-
-    for (e, mut t) in q.iter_mut() {
-        t.translation.y -= speed * time.delta_seconds();
-
-        if t.translation.y < -350.0 {
-            commands.entity(e).despawn();
         }
     }
 }
@@ -256,11 +304,17 @@ fn move_raindrops(
 fn spawn_raindrops(
     mut commands: Commands,
     time: Res<Time>,
-    mut timer: ResMut<RainTimer>,
+    mut rain_timer: ResMut<RainTimer>,
+    lives: Res<Lives>,
+    won: Res<GameWon>,
 ) {
-    timer.0.tick(time.delta());
+    if lives.0 == 0 || won.0 {
+        return;
+    }
 
-    if timer.0.just_finished() {
+    rain_timer.0.tick(time.delta());
+
+    if rain_timer.0.just_finished() {
         let x = time.elapsed_seconds().sin() * 350.0;
 
         commands.spawn((
@@ -270,7 +324,7 @@ fn spawn_raindrops(
                     custom_size: Some(Vec2::new(12.0, 25.0)),
                     ..default()
                 },
-                transform: Transform::from_xyz(x, 320.0, 1.0),
+                transform: Transform::from_xyz(x, 320.0, 2.0),
                 ..default()
             },
             Raindrop,
@@ -278,49 +332,91 @@ fn spawn_raindrops(
     }
 }
 
+fn move_raindrops(
+    mut commands: Commands,
+    mut rain_query: Query<(Entity, &mut Transform), With<Raindrop>>,
+    time: Res<Time>,
+    score: Res<Score>,
+) {
+    let speed = 400.0 + score.0 as f32 * 30.0;
+
+    for (rain_entity, mut rain_transform) in rain_query.iter_mut() {
+        rain_transform.translation.y -= speed * time.delta_seconds();
+
+        if rain_transform.translation.y < -350.0 {
+            commands.entity(rain_entity).despawn();
+        }
+    }
+}
+
 fn check_rain_collision(
-    mut player: Query<&mut Transform, With<Player>>,
-    rain: Query<&Transform, (With<Raindrop>, Without<Player>)>,
-    mut text: Query<&mut Text, With<GameOverText>>,
-    mut vis: Query<&mut Visibility, With<GameOverText>>,
+    mut player_query: Query<&mut Transform, With<Player>>,
+    rain_query: Query<&Transform, (With<Raindrop>, Without<Player>)>,
+    mut text_query: Query<&mut Text, With<GameOverText>>,
+    mut visibility_query: Query<&mut Visibility, With<GameOverText>>,
     mut lives: ResMut<Lives>,
     mut cooldown: ResMut<HitCooldown>,
-    mut timer: ResMut<GameOverTimer>,
+    mut game_over_timer: ResMut<GameOverTimer>,
     won: Res<GameWon>,
 ) {
-    if !cooldown.0.finished() || won.0 { return; }
+    if !cooldown.0.finished() || won.0 || lives.0 == 0 {
+        return;
+    }
 
-    let mut pt = player.single_mut();
+    let mut player = player_query.single_mut();
 
-    for rt in rain.iter() {
-        if pt.translation.distance(rt.translation) < 35.0 {
-            pt.translation = Vec3::ZERO;
+    for rain in rain_query.iter() {
+        if player.translation.distance(rain.translation) < 35.0 {
+            player.translation = Vec3::ZERO;
 
-            if lives.0 > 0 { lives.0 -= 1; }
-
-            if lives.0 == 0 {
-                let mut t = text.single_mut();
-                t.sections[0].value = "You lost! Press R.".into();
-                t.sections[0].style.color = Color::RED;
-                *vis.single_mut() = Visibility::Visible;
+            if lives.0 > 0 {
+                lives.0 -= 1;
             }
 
-            timer.0.reset();
+            let mut text = text_query.single_mut();
+
+            if lives.0 > 0 {
+                text.sections[0].value = "Ouch! Avoid the rain!".to_string();
+                text.sections[0].style.color = Color::ORANGE_RED;
+            } else {
+                text.sections[0].value = "You lost! Press R to restart.".to_string();
+                text.sections[0].style.color = Color::RED;
+            }
+
+            *visibility_query.single_mut() = Visibility::Visible;
+            game_over_timer.0.reset();
             cooldown.0.reset();
+
             break;
         }
     }
 }
 
-fn update_score_text(score: Res<Score>, mut q: Query<&mut Text, With<ScoreText>>) {
-    if score.is_changed() {
-        q.single_mut().sections[0].value = format!("Score: {}", score.0);
+fn check_win_condition(
+    score: Res<Score>,
+    mut text_query: Query<&mut Text, With<GameOverText>>,
+    mut visibility_query: Query<&mut Visibility, With<GameOverText>>,
+    mut won: ResMut<GameWon>,
+) {
+    if score.0 >= 10 && !won.0 {
+        let mut text = text_query.single_mut();
+        text.sections[0].value = "You saved the salamander! Press R to play again.".to_string();
+        text.sections[0].style.color = Color::GREEN;
+
+        *visibility_query.single_mut() = Visibility::Visible;
+        won.0 = true;
     }
 }
 
-fn update_lives_text(lives: Res<Lives>, mut q: Query<&mut Text, With<LivesText>>) {
+fn update_score_text(score: Res<Score>, mut text_query: Query<&mut Text, With<ScoreText>>) {
+    if score.is_changed() {
+        text_query.single_mut().sections[0].value = format!("Score: {}", score.0);
+    }
+}
+
+fn update_lives_text(lives: Res<Lives>, mut text_query: Query<&mut Text, With<LivesText>>) {
     if lives.is_changed() {
-        q.single_mut().sections[0].value = format!("Lives: {}", lives.0);
+        text_query.single_mut().sections[0].value = format!("Lives: {}", lives.0);
     }
 }
 
@@ -331,42 +427,42 @@ fn tick_hit_cooldown(time: Res<Time>, mut cooldown: ResMut<HitCooldown>) {
 fn update_game_over_text(
     time: Res<Time>,
     mut timer: ResMut<GameOverTimer>,
-    mut vis: Query<&mut Visibility, With<GameOverText>>,
+    mut visibility_query: Query<&mut Visibility, With<GameOverText>>,
     lives: Res<Lives>,
     won: Res<GameWon>,
 ) {
     timer.0.tick(time.delta());
+
     if timer.0.finished() && lives.0 > 0 && !won.0 {
-        *vis.single_mut() = Visibility::Hidden;
+        *visibility_query.single_mut() = Visibility::Hidden;
     }
 }
 
-// Restart
 fn handle_restart(
     mut commands: Commands,
     input: Res<ButtonInput<KeyCode>>,
     mut score: ResMut<Score>,
     mut lives: ResMut<Lives>,
     mut won: ResMut<GameWon>,
-    mut player: Query<&mut Transform, With<Player>>,
-    mut vis: Query<&mut Visibility, With<GameOverText>>,
-    rain: Query<Entity, With<Raindrop>>,
-    bugs: Query<Entity, With<Bug>>,
+    mut player_query: Query<&mut Transform, With<Player>>,
+    mut visibility_query: Query<&mut Visibility, With<GameOverText>>,
+    rain_query: Query<Entity, With<Raindrop>>,
+    bug_query: Query<Entity, With<Bug>>,
 ) {
     if input.just_pressed(KeyCode::KeyR) && (lives.0 == 0 || won.0) {
         score.0 = 0;
         lives.0 = 3;
         won.0 = false;
 
-        player.single_mut().translation = Vec3::ZERO;
-        *vis.single_mut() = Visibility::Hidden;
+        player_query.single_mut().translation = Vec3::ZERO;
+        *visibility_query.single_mut() = Visibility::Hidden;
 
-        for e in rain.iter() {
-            commands.entity(e).despawn();
+        for rain in rain_query.iter() {
+            commands.entity(rain).despawn();
         }
 
-        for e in bugs.iter() {
-            commands.entity(e).despawn();
+        for bug in bug_query.iter() {
+            commands.entity(bug).despawn_recursive();
         }
 
         spawn_bugs(&mut commands);
