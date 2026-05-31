@@ -13,6 +13,10 @@ struct Raindrop;
 #[derive(Component)]
 struct ScoreText;
 
+// Game over text tag
+#[derive(Component)]
+struct GameOverText;
+
 // Resources
 #[derive(Resource)]
 struct Score(u32);
@@ -20,11 +24,16 @@ struct Score(u32);
 #[derive(Resource)]
 struct RainTimer(Timer);
 
+// controls visibility duration
+#[derive(Resource)]
+struct GameOverTimer(Timer);
+
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
         .insert_resource(Score(0))
         .insert_resource(RainTimer(Timer::from_seconds(0.2, TimerMode::Repeating)))
+        .insert_resource(GameOverTimer(Timer::from_seconds(2.0, TimerMode::Once)))
         .add_systems(Startup, setup)
         .add_systems(
             Update,
@@ -35,6 +44,7 @@ fn main() {
                 move_raindrops,
                 check_rain_collision,
                 update_score_text,
+                update_game_over_text,
             ),
         )
         .run();
@@ -57,7 +67,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         Player,
     ));
 
-    // Multiple bugs (different positions)
+    // Multiple bugs
     let bug_positions = [
         Vec3::new(200.0, 0.0, 1.0),
         Vec3::new(-200.0, 100.0, 1.0),
@@ -81,7 +91,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ));
     }
 
-    // Score UI
+    // Score text
     commands.spawn((
         TextBundle {
             text: Text::from_section(
@@ -101,6 +111,29 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ..default()
         },
         ScoreText,
+    ));
+
+    // Game over text (hidden initially)
+    commands.spawn((
+        TextBundle {
+            text: Text::from_section(
+                "Game Over! Avoid the rain!",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 40.0,
+                    color: Color::RED,
+                },
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(100.0),
+                left: Val::Px(200.0),
+                ..default()
+            },
+            visibility: Visibility::Hidden, // ✅ hidden by default
+            ..default()
+        },
+        GameOverText,
     ));
 }
 
@@ -133,7 +166,7 @@ fn player_movement(
     player_transform.translation.y = player_transform.translation.y.clamp(-280.0, 280.0);
 }
 
-// Bug collection (unchanged)
+// Collect bugs
 fn collect_bug(
     mut commands: Commands,
     mut score: ResMut<Score>,
@@ -153,7 +186,7 @@ fn collect_bug(
     }
 }
 
-// UI update
+// Update score UI
 fn update_score_text(
     score: Res<Score>,
     mut query: Query<&mut Text, With<ScoreText>>,
@@ -190,7 +223,7 @@ fn spawn_raindrops(
     }
 }
 
-// Rain movement
+// Move rain
 fn move_raindrops(
     mut commands: Commands,
     mut rain_query: Query<(Entity, &mut Transform), With<Raindrop>>,
@@ -205,10 +238,12 @@ fn move_raindrops(
     }
 }
 
-// Collision
+// Show Game Over + start timer
 fn check_rain_collision(
     mut player_query: Query<&mut Transform, (With<Player>, Without<Raindrop>)>,
     rain_query: Query<&Transform, (With<Raindrop>, Without<Player>)>,
+    mut text_query: Query<&mut Visibility, With<GameOverText>>,
+    mut game_over_timer: ResMut<GameOverTimer>,
 ) {
     let mut player_transform = player_query.single_mut();
 
@@ -218,7 +253,27 @@ fn check_rain_collision(
         if distance < 35.0 {
             println!("Game over!");
             player_transform.translation = Vec3::ZERO;
+
+            // Show text
+            *text_query.single_mut() = Visibility::Visible;
+
+            // Restart timer
+            game_over_timer.0.reset();
+
             break;
         }
+    }
+}
+
+// Hide after 2 seconds
+fn update_game_over_text(
+    time: Res<Time>,
+    mut timer: ResMut<GameOverTimer>,
+    mut query: Query<&mut Visibility, With<GameOverText>>,
+) {
+    timer.0.tick(time.delta());
+
+    if timer.0.finished() {
+        *query.single_mut() = Visibility::Hidden;
     }
 }
