@@ -16,6 +16,9 @@ struct Raindrop;
 struct ScoreText;
 
 #[derive(Component)]
+struct HighScoreText;
+
+#[derive(Component)]
 struct LivesText;
 
 #[derive(Component)]
@@ -29,6 +32,9 @@ struct TitleText;
 
 #[derive(Resource)]
 struct Score(u32);
+
+#[derive(Resource)]
+struct HighScore(u32);
 
 #[derive(Resource)]
 struct Lives(u32);
@@ -45,24 +51,15 @@ struct HitCooldown(Timer);
 #[derive(Resource)]
 struct GameWon(bool);
 
-const BUG_POSITIONS: [Vec3; 10] = [
-    Vec3::new(-300.0, 200.0, 1.0),
-    Vec3::new(-150.0, 220.0, 1.0),
-    Vec3::new(0.0, 220.0, 1.0),
-    Vec3::new(150.0, 220.0, 1.0),
-    Vec3::new(300.0, 200.0, 1.0),
-    Vec3::new(-250.0, 0.0, 1.0),
-    Vec3::new(-100.0, -50.0, 1.0),
-    Vec3::new(100.0, -50.0, 1.0),
-    Vec3::new(250.0, 0.0, 1.0),
-    Vec3::new(0.0, -220.0, 1.0),
-];
+const FIREFLY_COUNT: u32 = 20;
+const WIN_SCORE: u32 = 20;
 
 fn main() {
     App::new()
         .insert_resource(ClearColor(Color::rgb(0.05, 0.08, 0.2)))
         .add_plugins(DefaultPlugins)
         .insert_resource(Score(0))
+        .insert_resource(HighScore(0))
         .insert_resource(Lives(3))
         .insert_resource(GameWon(false))
         .insert_resource(RainTimer(Timer::from_seconds(0.2, TimerMode::Repeating)))
@@ -79,6 +76,7 @@ fn main() {
                 check_rain_collision,
                 check_win_condition,
                 update_score_text,
+                update_high_score_text,
                 update_lives_text,
                 update_game_over_text,
                 tick_hit_cooldown,
@@ -118,7 +116,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 "Score: 0",
                 TextStyle {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 30.0,
+                    font_size: 28.0,
                     color: Color::WHITE,
                 },
             ),
@@ -136,16 +134,37 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         TextBundle {
             text: Text::from_section(
+                "High Score: 0",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 24.0,
+                    color: Color::GOLD,
+                },
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(95.0),
+                left: Val::Px(10.0),
+                ..default()
+            },
+            ..default()
+        },
+        HighScoreText,
+    ));
+
+    commands.spawn((
+        TextBundle {
+            text: Text::from_section(
                 "Lives: 3",
                 TextStyle {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
-                    font_size: 30.0,
+                    font_size: 28.0,
                     color: Color::WHITE,
                 },
             ),
             style: Style {
                 position_type: PositionType::Absolute,
-                top: Val::Px(100.0),
+                top: Val::Px(130.0),
                 left: Val::Px(10.0),
                 ..default()
             },
@@ -166,7 +185,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             ),
             style: Style {
                 position_type: PositionType::Absolute,
-                top: Val::Px(150.0),
+                top: Val::Px(170.0),
                 left: Val::Px(130.0),
                 ..default()
             },
@@ -179,7 +198,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn((
         TextBundle {
             text: Text::from_section(
-                "WASD to move • collect 10 fireflies • avoid rain • Press R to restart",
+                "WASD to move • collect 20 fireflies • avoid rain • Press R after win/loss",
                 TextStyle {
                     font: asset_server.load("fonts/FiraSans-Bold.ttf"),
                     font_size: 20.0,
@@ -189,7 +208,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             style: Style {
                 position_type: PositionType::Absolute,
                 bottom: Val::Px(10.0),
-                left: Val::Px(45.0),
+                left: Val::Px(40.0),
                 ..default()
             },
             ..default()
@@ -210,11 +229,23 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         Player,
     ));
 
-    spawn_bugs(&mut commands);
+    spawn_bugs(&mut commands, 1.0);
 }
 
-fn spawn_bugs(commands: &mut Commands) {
-    for pos in BUG_POSITIONS {
+fn random_01(seed: f32) -> f32 {
+    (seed.sin() * 43758.5453).abs().fract()
+}
+
+fn random_range(seed: f32, min: f32, max: f32) -> f32 {
+    min + random_01(seed) * (max - min)
+}
+
+fn spawn_bugs(commands: &mut Commands, seed: f32) {
+    for i in 0..FIREFLY_COUNT {
+        let x = random_range(seed + i as f32 * 12.989, -350.0, 350.0);
+        let y = random_range(seed + i as f32 * 78.233, -240.0, 240.0);
+        let pos = Vec3::new(x, y, 1.0);
+
         commands
             .spawn((
                 TransformBundle::from_transform(Transform::from_translation(pos)),
@@ -225,10 +256,9 @@ fn spawn_bugs(commands: &mut Commands) {
                     SpriteBundle {
                         sprite: Sprite {
                             color: Color::rgba(1.0, 1.0, 0.3, 0.25),
-                            custom_size: Some(Vec2::new(60.0, 60.0)),
+                            custom_size: Some(Vec2::new(65.0, 65.0)),
                             ..default()
                         },
-                        transform: Transform::from_xyz(0.0, 0.0, 0.0),
                         ..default()
                     },
                     Glow,
@@ -237,7 +267,7 @@ fn spawn_bugs(commands: &mut Commands) {
                 parent.spawn(SpriteBundle {
                     sprite: Sprite {
                         color: Color::YELLOW,
-                        custom_size: Some(Vec2::new(30.0, 30.0)),
+                        custom_size: Some(Vec2::new(28.0, 28.0)),
                         ..default()
                     },
                     transform: Transform::from_xyz(0.0, 0.0, 1.0),
@@ -282,6 +312,7 @@ fn player_movement(
 fn collect_bug(
     mut commands: Commands,
     mut score: ResMut<Score>,
+    mut high_score: ResMut<HighScore>,
     player_query: Query<&Transform, With<Player>>,
     bug_query: Query<(Entity, &Transform), With<Bug>>,
     lives: Res<Lives>,
@@ -297,6 +328,10 @@ fn collect_bug(
         if player.translation.distance(bug_transform.translation) < 45.0 {
             commands.entity(bug_entity).despawn_recursive();
             score.0 += 1;
+
+            if score.0 > high_score.0 {
+                high_score.0 = score.0;
+            }
         }
     }
 }
@@ -315,7 +350,8 @@ fn spawn_raindrops(
     rain_timer.0.tick(time.delta());
 
     if rain_timer.0.just_finished() {
-        let x = time.elapsed_seconds().sin() * 350.0;
+        let seed = time.elapsed_seconds() * 91.7;
+        let x = random_range(seed, -380.0, 380.0);
 
         commands.spawn((
             SpriteBundle {
@@ -398,7 +434,7 @@ fn check_win_condition(
     mut visibility_query: Query<&mut Visibility, With<GameOverText>>,
     mut won: ResMut<GameWon>,
 ) {
-    if score.0 >= 10 && !won.0 {
+    if score.0 >= WIN_SCORE && !won.0 {
         let mut text = text_query.single_mut();
         text.sections[0].value = "You saved the salamander! Press R to play again.".to_string();
         text.sections[0].style.color = Color::GREEN;
@@ -411,6 +447,15 @@ fn check_win_condition(
 fn update_score_text(score: Res<Score>, mut text_query: Query<&mut Text, With<ScoreText>>) {
     if score.is_changed() {
         text_query.single_mut().sections[0].value = format!("Score: {}", score.0);
+    }
+}
+
+fn update_high_score_text(
+    high_score: Res<HighScore>,
+    mut text_query: Query<&mut Text, With<HighScoreText>>,
+) {
+    if high_score.is_changed() {
+        text_query.single_mut().sections[0].value = format!("High Score: {}", high_score.0);
     }
 }
 
@@ -441,6 +486,7 @@ fn update_game_over_text(
 fn handle_restart(
     mut commands: Commands,
     input: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
     mut score: ResMut<Score>,
     mut lives: ResMut<Lives>,
     mut won: ResMut<GameWon>,
@@ -465,6 +511,6 @@ fn handle_restart(
             commands.entity(bug).despawn_recursive();
         }
 
-        spawn_bugs(&mut commands);
+        spawn_bugs(&mut commands, time.elapsed_seconds() + 5.0);
     }
 }
