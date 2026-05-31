@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+// Components
 #[derive(Component)]
 struct Player;
 
@@ -9,6 +10,10 @@ struct Bug;
 #[derive(Component)]
 struct Raindrop;
 
+#[derive(Component)]
+struct ScoreText;
+
+// Resources
 #[derive(Resource)]
 struct Score(u32);
 
@@ -29,14 +34,16 @@ fn main() {
                 spawn_raindrops,
                 move_raindrops,
                 check_rain_collision,
+                update_score_text,
             ),
         )
         .run();
 }
 
-fn setup(mut commands: Commands) {
+fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn(Camera2dBundle::default());
 
+    // Player
     commands.spawn((
         SpriteBundle {
             sprite: Sprite {
@@ -50,20 +57,54 @@ fn setup(mut commands: Commands) {
         Player,
     ));
 
-    commands.spawn((
-        SpriteBundle {
-            sprite: Sprite {
-                color: Color::YELLOW,
-                custom_size: Some(Vec2::new(30.0, 30.0)),
+    // Multiple bugs (different positions)
+    let bug_positions = [
+        Vec3::new(200.0, 0.0, 1.0),
+        Vec3::new(-200.0, 100.0, 1.0),
+        Vec3::new(0.0, -150.0, 1.0),
+        Vec3::new(150.0, 200.0, 1.0),
+        Vec3::new(-150.0, -200.0, 1.0),
+    ];
+
+    for position in bug_positions {
+        commands.spawn((
+            SpriteBundle {
+                sprite: Sprite {
+                    color: Color::YELLOW,
+                    custom_size: Some(Vec2::new(30.0, 30.0)),
+                    ..default()
+                },
+                transform: Transform::from_translation(position),
                 ..default()
             },
-            transform: Transform::from_xyz(200.0, 0.0, 1.0),
+            Bug,
+        ));
+    }
+
+    // Score UI
+    commands.spawn((
+        TextBundle {
+            text: Text::from_section(
+                "Score: 0",
+                TextStyle {
+                    font: asset_server.load("fonts/FiraSans-Bold.ttf"),
+                    font_size: 30.0,
+                    color: Color::WHITE,
+                },
+            ),
+            style: Style {
+                position_type: PositionType::Absolute,
+                top: Val::Px(10.0),
+                left: Val::Px(10.0),
+                ..default()
+            },
             ..default()
         },
-        Bug,
+        ScoreText,
     ));
 }
 
+// Movement
 fn player_movement(
     keyboard_input: Res<ButtonInput<KeyCode>>,
     mut player_query: Query<&mut Transform, With<Player>>,
@@ -92,6 +133,7 @@ fn player_movement(
     player_transform.translation.y = player_transform.translation.y.clamp(-280.0, 280.0);
 }
 
+// Bug collection (unchanged)
 fn collect_bug(
     mut commands: Commands,
     mut score: ResMut<Score>,
@@ -111,6 +153,18 @@ fn collect_bug(
     }
 }
 
+// UI update
+fn update_score_text(
+    score: Res<Score>,
+    mut query: Query<&mut Text, With<ScoreText>>,
+) {
+    if score.is_changed() {
+        let mut text = query.single_mut();
+        text.sections[0].value = format!("Score: {}", score.0);
+    }
+}
+
+// Rain spawn
 fn spawn_raindrops(
     mut commands: Commands,
     time: Res<Time>,
@@ -136,6 +190,7 @@ fn spawn_raindrops(
     }
 }
 
+// Rain movement
 fn move_raindrops(
     mut commands: Commands,
     mut rain_query: Query<(Entity, &mut Transform), With<Raindrop>>,
@@ -150,6 +205,7 @@ fn move_raindrops(
     }
 }
 
+// Collision
 fn check_rain_collision(
     mut player_query: Query<&mut Transform, (With<Player>, Without<Raindrop>)>,
     rain_query: Query<&Transform, (With<Raindrop>, Without<Player>)>,
