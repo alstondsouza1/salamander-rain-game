@@ -20,6 +20,14 @@ This project was intentionally built in a technology stack that was unfamiliar t
   - A = Left
   - S = Down
   - D = Right
+  - Arrow keys are also supported
+
+### Visual Design
+- Code-drawn salamander character with a head, tail, legs, eyes, and markings.
+- Layered nighttime forest background.
+- Pulsing firefly glow animations.
+- Varied rain sizes and falling speeds.
+- Centered HUD with firefly progress and heart-based lives.
 
 ### Firefly Collection
 - Glowing fireflies are placed around the map.
@@ -38,6 +46,21 @@ This project was intentionally built in a technology stack that was unfamiliar t
 ### Hit Cooldown
 - 1 second of invulnerability after taking damage.
 - Prevents losing multiple lives instantly.
+- The salamander flashes while temporarily invulnerable.
+
+### Game Screens
+- Title screen with controls and the saved best score.
+- Pause screen that preserves the current round.
+- Win and loss screens with replay and main-menu controls.
+
+### Gameplay Feedback
+- Firefly collection particles.
+- Screen shake when the salamander is hit.
+- Visible storm intensity indicator.
+
+### Persistent High Score
+- The best score is saved in `high_score.txt`.
+- The score is restored the next time the game starts.
 
 ### Dynamic Difficulty
 - Rain speed increases as score increases.
@@ -49,7 +72,7 @@ Collect all fireflies to save the salamander.
 Displays:
 
 ```text
-You saved the salamander! Press R to play again.
+The fireflies are safe! Press Enter or R to play again.
 ```
 
 ### Lose Condition
@@ -58,17 +81,8 @@ Lose all 3 lives.
 Displays:
 
 ```text
-You lost! Press R to restart.
+The storm won. Press Enter or R to try again.
 ```
-
-### Restart System
-Press:
-
-```text
-R
-```
-
-to restart after winning or losing.
 
 ---
 
@@ -86,20 +100,23 @@ to restart after winning or losing.
 
 ```text
 src/
- └── main.rs
+ ├── background.rs
+ ├── constants.rs
+ ├── effects.rs
+ ├── firefly.rs
+ ├── game.rs
+ ├── main.rs
+ ├── player.rs
+ ├── rain.rs
+ ├── ui.rs
+ └── util.rs
 
 assets/
  └── fonts/
       └── FiraSans-Bold.ttf
 ```
 
-Everything is implemented inside a single:
-
-```text
-src/main.rs
-```
-
-file.
+Each gameplay area is implemented as a focused Bevy plugin or shared module.
 
 ---
 
@@ -128,7 +145,10 @@ cargo run
 | A | Move Left |
 | S | Move Down |
 | D | Move Right |
-| R | Restart Game |
+| Arrow Keys | Move |
+| P or Escape | Pause or resume |
+| Enter or R | Start or replay |
+| M | Return to the menu from pause/end screens |
 
 ---
 
@@ -182,13 +202,7 @@ One improvement I would make next time is to plan the game features in more deta
 
 Potential future features include:
 
-- Salamander sprite artwork instead of a green square
 - Sound effects
-- Pause menu
-- High score tracking
 - Randomized rain patterns
 - Additional levels
-- Better visual effects
-- Particle animations
-- Animated fireflies
 - Background music

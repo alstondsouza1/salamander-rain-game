@@ -1,6 +1,4 @@
 target/
 Cargo.lock
-
-# Added by cargo
-
-/target
+high_score.txt
+.DS_Store
