@@ -1,4 +1,4 @@
 target/
-Cargo.lock
 high_score.txt
 .DS_Store
+tmp/

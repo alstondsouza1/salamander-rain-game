@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
 use crate::{
-    constants::{FIREFLY_YELLOW, SALAMANDER_ORANGE, WIN_SCORE},
+    constants::{FIREFLY_YELLOW, SALAMANDER_ORANGE},
     game::{GameState, GameplayEntity, HighScore, Lives, Score},
+    level::{CurrentLevel, LevelDefinition},
 };
 
 #[derive(Component)]
@@ -38,46 +39,49 @@ impl Plugin for UiPlugin {
                     menu_input.run_if(in_state(GameState::Menu)),
                     playing_input.run_if(in_state(GameState::Playing)),
                     pause_input.run_if(in_state(GameState::Paused)),
-                    end_screen_input
-                        .run_if(in_state(GameState::Won).or_else(in_state(GameState::Lost))),
+                    end_screen_input.run_if(end_screen_active),
                     update_hud,
                 ),
             );
     }
 }
 
-pub fn spawn_hud(commands: &mut Commands, asset_server: &AssetServer, high_score: u32) {
+pub fn spawn_hud(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    high_score: u32,
+    level_index: usize,
+    level: LevelDefinition,
+) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
     spawn_text(
         commands,
-        "SALAMANDER RAIN DASH",
+        &format!(
+            "LEVEL {}  -  {}",
+            level_index + 1,
+            level.name.to_uppercase()
+        ),
         font.clone(),
-        34.0,
-        Color::rgb(0.92, 0.96, 0.90),
-        Style {
-            position_type: PositionType::Absolute,
-            top: Val::Px(14.0),
-            width: Val::Percent(100.0),
-            justify_content: JustifyContent::Center,
-            ..default()
-        },
-        None,
+        30.0,
+        Color::srgb(0.92, 0.96, 0.90),
+        centered_top(14.0),
+        false,
     );
 
     let score = spawn_text(
         commands,
-        &format!("FIREFLIES  0 / {WIN_SCORE}"),
+        &format!("FIREFLIES  0 / {}", level.firefly_goal),
         font.clone(),
         23.0,
         FIREFLY_YELLOW,
-        Style {
+        Node {
             position_type: PositionType::Absolute,
-            top: Val::Px(22.0),
-            left: Val::Px(22.0),
+            top: px(22),
+            left: px(22),
             ..default()
         },
-        None,
+        false,
     );
     commands.entity(score).insert(ScoreText);
 
@@ -86,30 +90,33 @@ pub fn spawn_hud(commands: &mut Commands, asset_server: &AssetServer, high_score
         &format!("BEST  {high_score}"),
         font.clone(),
         18.0,
-        Color::rgb(0.62, 0.72, 0.69),
-        Style {
+        Color::srgb(0.62, 0.72, 0.69),
+        Node {
             position_type: PositionType::Absolute,
-            top: Val::Px(51.0),
-            left: Val::Px(22.0),
+            top: px(51),
+            left: px(22),
             ..default()
         },
-        None,
+        false,
     );
     commands.entity(best).insert(HighScoreText);
 
     let lives = spawn_text(
         commands,
-        "LIVES  \u{2665} \u{2665} \u{2665}",
+        &format!(
+            "LIVES  {}",
+            "\u{2665} ".repeat(level.starting_lives as usize)
+        ),
         font.clone(),
         23.0,
         SALAMANDER_ORANGE,
-        Style {
+        Node {
             position_type: PositionType::Absolute,
-            top: Val::Px(22.0),
-            right: Val::Px(22.0),
+            top: px(22),
+            right: px(22),
             ..default()
         },
-        None,
+        false,
     );
     commands.entity(lives).insert(LivesText);
 
@@ -118,14 +125,14 @@ pub fn spawn_hud(commands: &mut Commands, asset_server: &AssetServer, high_score
         "STORM  CALM",
         font.clone(),
         17.0,
-        Color::rgb(0.45, 0.72, 0.92),
-        Style {
+        Color::srgb(0.45, 0.72, 0.92),
+        Node {
             position_type: PositionType::Absolute,
-            top: Val::Px(52.0),
-            right: Val::Px(22.0),
+            top: px(52),
+            right: px(22),
             ..default()
         },
-        None,
+        false,
     );
     commands.entity(difficulty).insert(DifficultyText);
 
@@ -134,15 +141,15 @@ pub fn spawn_hud(commands: &mut Commands, asset_server: &AssetServer, high_score
         "WASD / ARROWS TO MOVE     P / ESC TO PAUSE",
         font,
         16.0,
-        Color::rgb(0.54, 0.64, 0.62),
-        Style {
+        Color::srgb(0.68, 0.76, 0.73),
+        Node {
             position_type: PositionType::Absolute,
-            bottom: Val::Px(12.0),
-            width: Val::Percent(100.0),
+            bottom: px(12),
+            width: percent(100),
             justify_content: JustifyContent::Center,
             ..default()
         },
-        None,
+        false,
     );
 }
 
@@ -152,143 +159,128 @@ fn spawn_text(
     font: Handle<Font>,
     size: f32,
     color: Color,
-    style: Style,
-    marker: Option<ScreenEntity>,
+    node: Node,
+    screen_entity: bool,
 ) -> Entity {
     let mut entity = commands.spawn((
-        TextBundle {
-            text: Text::from_section(
-                value,
-                TextStyle {
-                    font,
-                    font_size: size,
-                    color,
-                },
-            )
-            .with_justify(JustifyText::Center),
-            style,
+        Text::new(value),
+        TextFont {
+            font,
+            font_size: size,
             ..default()
         },
-        GameplayEntity,
+        TextColor(color),
+        TextLayout::new_with_justify(Justify::Center),
+        node,
     ));
-    if let Some(marker) = marker {
-        entity.insert(marker);
+    if screen_entity {
+        entity.insert(ScreenEntity);
+    } else {
+        entity.insert(GameplayEntity);
     }
     entity.id()
 }
 
+fn centered_top(top: f32) -> Node {
+    Node {
+        position_type: PositionType::Absolute,
+        top: px(top),
+        width: percent(100),
+        justify_content: JustifyContent::Center,
+        ..default()
+    }
+}
+
 fn show_menu(mut commands: Commands, asset_server: Res<AssetServer>, high_score: Res<HighScore>) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
-    spawn_screen_text(
+    spawn_text(
         &mut commands,
         "SALAMANDER\nRAIN DASH",
         font.clone(),
         58.0,
         FIREFLY_YELLOW,
-        110.0,
+        centered_top(92.0),
+        true,
     );
-    spawn_screen_text(
+    spawn_text(
         &mut commands,
         &format!(
-            "Collect all {WIN_SCORE} fireflies before the storm takes your lives.\n\n\
+            "Three wetlands. One growing storm.\nCollect every firefly to advance.\n\n\
              WASD or Arrow Keys  -  Move\nP or Escape  -  Pause\n\n\
              BEST SCORE: {}\n\nPRESS ENTER TO START",
             high_score.0
         ),
         font,
-        22.0,
-        Color::rgb(0.88, 0.94, 0.90),
-        285.0,
+        21.0,
+        Color::srgb(0.88, 0.94, 0.90),
+        centered_top(275.0),
+        true,
     );
 }
 
 fn show_pause(mut commands: Commands, asset_server: Res<AssetServer>) {
     spawn_overlay(&mut commands);
-    spawn_screen_text(
+    spawn_text(
         &mut commands,
         "PAUSED\n\nP / ESC  -  RESUME\nM  -  MAIN MENU",
         asset_server.load("fonts/FiraSans-Bold.ttf"),
         30.0,
         Color::WHITE,
-        210.0,
+        centered_top(210.0),
+        true,
     );
 }
 
-fn show_win(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn show_win(mut commands: Commands, asset_server: Res<AssetServer>, level: Res<CurrentLevel>) {
     spawn_overlay(&mut commands);
-    spawn_screen_text(
+    let message = if level.is_final() {
+        "ALL WETLANDS SAVED!\n\nENTER / R  -  PLAY FROM LEVEL 1\nM  -  MAIN MENU"
+    } else {
+        "LEVEL CLEAR!\n\nENTER / R  -  NEXT LEVEL\nM  -  MAIN MENU"
+    };
+    spawn_text(
         &mut commands,
-        "THE FIREFLIES ARE SAFE!\n\nENTER / R  -  PLAY AGAIN\nM  -  MAIN MENU",
+        message,
         asset_server.load("fonts/FiraSans-Bold.ttf"),
         30.0,
         FIREFLY_YELLOW,
-        205.0,
+        centered_top(205.0),
+        true,
     );
 }
 
-fn show_loss(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn show_loss(mut commands: Commands, asset_server: Res<AssetServer>, level: Res<CurrentLevel>) {
     spawn_overlay(&mut commands);
-    spawn_screen_text(
+    spawn_text(
         &mut commands,
-        "THE STORM WON\n\nENTER / R  -  TRY AGAIN\nM  -  MAIN MENU",
+        &format!(
+            "THE STORM WON LEVEL {}\n\nENTER / R  -  TRY AGAIN\nM  -  MAIN MENU",
+            level.0 + 1
+        ),
         asset_server.load("fonts/FiraSans-Bold.ttf"),
         30.0,
-        Color::rgb(1.0, 0.35, 0.25),
-        205.0,
+        Color::srgb(1.0, 0.35, 0.25),
+        centered_top(205.0),
+        true,
     );
 }
 
 fn spawn_overlay(commands: &mut Commands) {
     commands.spawn((
-        NodeBundle {
-            style: Style {
-                position_type: PositionType::Absolute,
-                width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
-                ..default()
-            },
-            background_color: BackgroundColor(Color::rgba(0.01, 0.02, 0.04, 0.82)),
+        Node {
+            position_type: PositionType::Absolute,
+            width: percent(100),
+            height: percent(100),
             ..default()
         },
-        ScreenEntity,
-    ));
-}
-
-fn spawn_screen_text(
-    commands: &mut Commands,
-    value: &str,
-    font: Handle<Font>,
-    size: f32,
-    color: Color,
-    top: f32,
-) {
-    commands.spawn((
-        TextBundle {
-            text: Text::from_section(
-                value,
-                TextStyle {
-                    font,
-                    font_size: size,
-                    color,
-                },
-            )
-            .with_justify(JustifyText::Center),
-            style: Style {
-                position_type: PositionType::Absolute,
-                top: Val::Px(top),
-                width: Val::Percent(100.0),
-                justify_content: JustifyContent::Center,
-                ..default()
-            },
-            ..default()
-        },
+        BackgroundColor(Color::srgba(0.01, 0.02, 0.04, 0.82)),
         ScreenEntity,
     ));
 }
 
 fn clear_screen(mut commands: Commands, query: Query<Entity, With<ScreenEntity>>) {
-    for entity in query.iter() {
-        commands.entity(entity).despawn_recursive();
+    for entity in &query {
+        commands.entity(entity).despawn();
     }
 }
 
@@ -312,11 +304,20 @@ fn pause_input(input: Res<ButtonInput<KeyCode>>, mut next_state: ResMut<NextStat
     }
 }
 
+fn end_screen_active(state: Res<State<GameState>>) -> bool {
+    matches!(state.get(), GameState::Won | GameState::Lost)
+}
+
 fn end_screen_input(
     input: Res<ButtonInput<KeyCode>>,
+    state: Res<State<GameState>>,
+    mut level: ResMut<CurrentLevel>,
     mut next_state: ResMut<NextState<GameState>>,
 ) {
     if input.just_pressed(KeyCode::Enter) || input.just_pressed(KeyCode::KeyR) {
+        if *state.get() == GameState::Won {
+            level.0 = if level.is_final() { 0 } else { level.0 + 1 };
+        }
         next_state.set(GameState::Playing);
     } else if input.just_pressed(KeyCode::KeyM) {
         next_state.set(GameState::Menu);
@@ -327,6 +328,7 @@ fn update_hud(
     score: Res<Score>,
     high_score: Res<HighScore>,
     lives: Res<Lives>,
+    level: Res<CurrentLevel>,
     mut text_queries: ParamSet<(
         Query<&mut Text, With<ScoreText>>,
         Query<&mut Text, With<HighScoreText>>,
@@ -335,30 +337,50 @@ fn update_hud(
     )>,
 ) {
     if score.is_changed() {
-        for mut text in text_queries.p0().iter_mut() {
-            text.sections[0].value = format!("FIREFLIES  {} / {}", score.0, WIN_SCORE);
+        for mut text in &mut text_queries.p0() {
+            *text = Text::new(format!(
+                "FIREFLIES  {} / {}",
+                score.0,
+                level.definition().firefly_goal
+            ));
         }
-        for mut text in text_queries.p3().iter_mut() {
-            let label = match score.0 {
-                0..=4 => "CALM",
-                5..=9 => "RISING",
-                10..=14 => "HEAVY",
-                _ => "FIERCE",
+        for mut text in &mut text_queries.p3() {
+            let progress = score.0 as f32 / level.definition().firefly_goal as f32;
+            let label = if progress < 0.25 {
+                "CALM"
+            } else if progress < 0.5 {
+                "RISING"
+            } else if progress < 0.75 {
+                "HEAVY"
+            } else {
+                "FIERCE"
             };
-            text.sections[0].value = format!("STORM  {label}");
+            *text = Text::new(format!("STORM  {label}"));
         }
     }
 
     if high_score.is_changed() {
-        for mut text in text_queries.p1().iter_mut() {
-            text.sections[0].value = format!("BEST  {}", high_score.0);
+        for mut text in &mut text_queries.p1() {
+            *text = Text::new(format!("BEST  {}", high_score.0));
         }
     }
 
     if lives.is_changed() {
-        for mut text in text_queries.p2().iter_mut() {
+        for mut text in &mut text_queries.p2() {
             let hearts = "\u{2665} ".repeat(lives.0 as usize);
-            text.sections[0].value = format!("LIVES  {}", hearts.trim_end());
+            *text = Text::new(format!("LIVES  {}", hearts.trim_end()));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn final_level_is_last_definition() {
+        let level = CurrentLevel(crate::level::LEVELS.len() - 1);
+        assert!(level.is_final());
+        assert_eq!(level.definition().name, "Tempest Grove");
     }
 }

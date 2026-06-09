@@ -1,9 +1,10 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 use crate::{
     constants::{
-        PLAYER_SPEED, PLAYFIELD_HALF_HEIGHT, PLAYFIELD_HALF_WIDTH, SALAMANDER_DARK,
-        SALAMANDER_ORANGE,
+        ATLAS_COLUMNS, ATLAS_FRAME_SIZE, PLAYER_SPEED, PLAYFIELD_HALF_HEIGHT, PLAYFIELD_HALF_WIDTH,
     },
     game::{GameState, GameplayEntity},
 };
@@ -16,112 +17,53 @@ pub struct HitFlash {
     pub timer: Timer,
 }
 
+#[derive(Component)]
+struct PlayerAnimation {
+    timer: Timer,
+}
+
+#[derive(Resource)]
+pub struct PlayerAtlas(pub Handle<TextureAtlasLayout>);
+
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(
+        app.add_systems(Startup, load_player_atlas).add_systems(
             Update,
-            (player_movement, animate_hit_flash).run_if(in_state(GameState::Playing)),
+            (player_movement, animate_player, animate_hit_flash)
+                .run_if(in_state(GameState::Playing)),
         );
     }
 }
 
-pub fn spawn_player(commands: &mut Commands) {
-    commands
-        .spawn((
-            SpatialBundle {
-                transform: Transform::from_xyz(0.0, 0.0, 3.0),
-                ..default()
-            },
-            Player,
-            GameplayEntity,
-        ))
-        .with_children(|parent| {
-            spawn_part(
-                parent,
-                Vec2::new(46.0, 27.0),
-                Vec3::ZERO,
-                SALAMANDER_ORANGE,
-                0.0,
-            );
-            spawn_part(
-                parent,
-                Vec2::new(27.0, 25.0),
-                Vec3::new(29.0, 1.0, 0.1),
-                SALAMANDER_ORANGE,
-                0.0,
-            );
-            spawn_part(
-                parent,
-                Vec2::new(31.0, 13.0),
-                Vec3::new(-35.0, 0.0, 0.0),
-                SALAMANDER_ORANGE,
-                0.16,
-            );
-            spawn_part(
-                parent,
-                Vec2::new(25.0, 10.0),
-                Vec3::new(-58.0, -3.0, 0.0),
-                SALAMANDER_ORANGE,
-                0.30,
-            );
-
-            for (x, y, angle) in [
-                (-12.0, 20.0, 0.55),
-                (12.0, 20.0, -0.55),
-                (-12.0, -20.0, -0.55),
-                (12.0, -20.0, 0.55),
-            ] {
-                spawn_part(
-                    parent,
-                    Vec2::new(22.0, 7.0),
-                    Vec3::new(x, y, -0.1),
-                    SALAMANDER_ORANGE,
-                    angle,
-                );
-            }
-
-            for x in [-12.0, 8.0] {
-                spawn_part(
-                    parent,
-                    Vec2::splat(8.0),
-                    Vec3::new(x, 0.0, 0.2),
-                    SALAMANDER_DARK,
-                    0.0,
-                );
-            }
-
-            for y in [-7.0, 8.0] {
-                spawn_part(
-                    parent,
-                    Vec2::splat(5.0),
-                    Vec3::new(37.0, y, 0.3),
-                    Color::WHITE,
-                    0.0,
-                );
-                spawn_part(
-                    parent,
-                    Vec2::splat(2.5),
-                    Vec3::new(38.0, y, 0.4),
-                    SALAMANDER_DARK,
-                    0.0,
-                );
-            }
-        });
+fn load_player_atlas(mut commands: Commands, mut layouts: ResMut<Assets<TextureAtlasLayout>>) {
+    let layout = TextureAtlasLayout::from_grid(ATLAS_FRAME_SIZE, ATLAS_COLUMNS, 1, None, None);
+    commands.insert_resource(PlayerAtlas(layouts.add(layout)));
 }
 
-fn spawn_part(parent: &mut ChildBuilder, size: Vec2, position: Vec3, color: Color, rotation: f32) {
-    parent.spawn(SpriteBundle {
-        sprite: Sprite {
-            color,
-            custom_size: Some(size),
+pub fn spawn_player(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    atlas: Handle<TextureAtlasLayout>,
+) {
+    commands.spawn((
+        Sprite {
+            image: asset_server.load("sprites/salamander-run.png"),
+            texture_atlas: Some(TextureAtlas {
+                layout: atlas,
+                index: 0,
+            }),
+            custom_size: Some(Vec2::new(105.0, 140.0)),
             ..default()
         },
-        transform: Transform::from_translation(position)
-            .with_rotation(Quat::from_rotation_z(rotation)),
-        ..default()
-    });
+        Transform::from_xyz(0.0, 0.0, 3.0),
+        Player,
+        PlayerAnimation {
+            timer: Timer::new(Duration::from_millis(110), TimerMode::Repeating),
+        },
+        GameplayEntity,
+    ));
 }
 
 fn player_movement(
@@ -129,7 +71,7 @@ fn player_movement(
     mut player_query: Query<&mut Transform, With<Player>>,
     time: Res<Time>,
 ) {
-    let Ok(mut player) = player_query.get_single_mut() else {
+    let Ok(mut player) = player_query.single_mut() else {
         return;
     };
     let mut direction = Vec3::ZERO;
@@ -148,7 +90,7 @@ fn player_movement(
     }
 
     let direction = direction.normalize_or_zero();
-    player.translation += direction * PLAYER_SPEED * time.delta_seconds();
+    player.translation += direction * PLAYER_SPEED * time.delta_secs();
     player.translation.x = player
         .translation
         .x
@@ -163,24 +105,54 @@ fn player_movement(
     }
 }
 
+fn animate_player(
+    input: Res<ButtonInput<KeyCode>>,
+    time: Res<Time>,
+    mut query: Query<(&mut PlayerAnimation, &mut Sprite), With<Player>>,
+) {
+    let moving = input.any_pressed([
+        KeyCode::KeyW,
+        KeyCode::KeyA,
+        KeyCode::KeyS,
+        KeyCode::KeyD,
+        KeyCode::ArrowUp,
+        KeyCode::ArrowDown,
+        KeyCode::ArrowLeft,
+        KeyCode::ArrowRight,
+    ]);
+
+    for (mut animation, mut sprite) in &mut query {
+        let Some(atlas) = &mut sprite.texture_atlas else {
+            continue;
+        };
+        if !moving {
+            atlas.index = 0;
+            continue;
+        }
+        animation.timer.tick(time.delta());
+        if animation.timer.just_finished() {
+            atlas.index = (atlas.index + 1) % ATLAS_COLUMNS as usize;
+        }
+    }
+}
+
 fn animate_hit_flash(
     mut commands: Commands,
     time: Res<Time>,
     mut player_query: Query<(Entity, &mut Visibility, &mut HitFlash), With<Player>>,
 ) {
-    let Ok((entity, mut visibility, mut flash)) = player_query.get_single_mut() else {
+    let Ok((entity, mut visibility, mut flash)) = player_query.single_mut() else {
         return;
     };
 
     flash.timer.tick(time.delta());
-    let blink = (flash.timer.elapsed_secs() * 14.0) as u32 % 2 == 0;
-    *visibility = if blink {
+    *visibility = if (flash.timer.elapsed_secs() * 14.0) as u32 % 2 == 0 {
         Visibility::Visible
     } else {
         Visibility::Hidden
     };
 
-    if flash.timer.finished() {
+    if flash.timer.is_finished() {
         *visibility = Visibility::Visible;
         commands.entity(entity).remove::<HitFlash>();
     }

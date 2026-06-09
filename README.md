@@ -1,12 +1,12 @@
 # Salamander Rain Dash
 
-A small survival-collection game built with **Rust**, **Bevy 0.13**, and **GitHub Copilot** for the Agentic Vibe Coding activity.
+A small survival-collection game built with **Rust**, **Bevy 0.18.1**, and **GitHub Copilot** for the Agentic Vibe Coding activity.
 
 ## Overview
 
 Salamander Rain Dash is a Bevy game where the player controls a salamander, collects glowing fireflies, and avoids falling rain.
 
-The goal is to collect all fireflies before losing all 3 lives. As the player collects more fireflies, the rain falls faster, increasing the difficulty.
+The goal is to clear three increasingly dangerous wetland levels by collecting every firefly before losing all 3 lives.
 
 This project was intentionally built in a technology stack that was unfamiliar to me (Rust and Bevy) while using an AI coding agent to help generate and modify code.
 
@@ -23,9 +23,10 @@ This project was intentionally built in a technology stack that was unfamiliar t
   - Arrow keys are also supported
 
 ### Visual Design
-- Code-drawn salamander character with a head, tail, legs, eyes, and markings.
-- Layered nighttime forest background.
-- Pulsing firefly glow animations.
+- Animated salamander run-cycle sprite sheet.
+- Animated firefly wing-cycle sprite sheet.
+- Animated rain-splash effects.
+- Hand-painted nighttime wetland background.
 - Varied rain sizes and falling speeds.
 - Centered HUD with firefly progress and heart-based lives.
 
@@ -63,8 +64,17 @@ This project was intentionally built in a technology stack that was unfamiliar t
 - The score is restored the next time the game starts.
 
 ### Dynamic Difficulty
-- Rain speed increases as score increases.
-- Makes the game progressively harder.
+- Rain speed increases with collected fireflies.
+- Each new level has faster, more frequent rain.
+- The HUD reports the current storm intensity.
+
+### Three Levels
+- **Firefly Marsh:** 12 fireflies and a lighter storm.
+- **Moonlit Fen:** 16 fireflies with faster rain.
+- **Tempest Grove:** 20 fireflies in the strongest storm.
+
+### Real Randomness
+- Firefly positions and rain variation use the `rand` crate.
 
 ### Win Condition
 Collect all fireflies to save the salamander.
@@ -89,7 +99,8 @@ The storm won. Press Enter or R to try again.
 ## Technologies Used
 
 - Rust
-- Bevy 0.13
+- Bevy 0.18.1
+- rand 0.9
 - Git
 - GitHub
 - GitHub Copilot
@@ -105,6 +116,7 @@ src/
  ├── effects.rs
  ├── firefly.rs
  ├── game.rs
+ ├── level.rs
  ├── main.rs
  ├── player.rs
  ├── rain.rs
@@ -112,8 +124,14 @@ src/
  └── util.rs
 
 assets/
- └── fonts/
-      └── FiraSans-Bold.ttf
+ ├── backgrounds/
+ │    └── wetland-night.png
+ ├── fonts/
+ │    └── FiraSans-Bold.ttf
+ └── sprites/
+      ├── firefly-flap.png
+      ├── rain-splash.png
+      └── salamander-run.png
 ```
 
 Each gameplay area is implemented as a focused Bevy plugin or shared module.
@@ -149,13 +167,6 @@ cargo run
 | P or Escape | Pause or resume |
 | Enter or R | Start or replay |
 | M | Return to the menu from pause/end screens |
-
----
-
-## Screenshot
-
-
-![Game Screenshot](screenshot.jpg)
 
 ---
 
@@ -203,6 +214,6 @@ One improvement I would make next time is to plan the game features in more deta
 Potential future features include:
 
 - Sound effects
-- Randomized rain patterns
-- Additional levels
+- More hazards and power-ups
+- Difficulty selection
 - Background music
