@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     constants::{FIREFLY_YELLOW, SALAMANDER_ORANGE},
     game::{GameState, GameplayEntity, HighScore, Lives, Score},
-    level::{CurrentLevel, LevelDefinition},
+    level::{CurrentLevel, Difficulty, LevelDefinition},
 };
 
 #[derive(Component)]
@@ -21,6 +21,9 @@ struct LivesText;
 #[derive(Component)]
 struct DifficultyText;
 
+#[derive(Component)]
+struct MenuDifficultyText;
+
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
@@ -37,6 +40,7 @@ impl Plugin for UiPlugin {
                 Update,
                 (
                     menu_input.run_if(in_state(GameState::Menu)),
+                    menu_difficulty_input.run_if(in_state(GameState::Menu)),
                     playing_input.run_if(in_state(GameState::Playing)),
                     pause_input.run_if(in_state(GameState::Paused)),
                     end_screen_input.run_if(end_screen_active),
@@ -52,15 +56,17 @@ pub fn spawn_hud(
     high_score: u32,
     level_index: usize,
     level: LevelDefinition,
+    difficulty: Difficulty,
 ) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
 
     spawn_text(
         commands,
         &format!(
-            "LEVEL {}  -  {}",
+            "LEVEL {}  -  {}  -  {}",
             level_index + 1,
-            level.name.to_uppercase()
+            level.name.to_uppercase(),
+            difficulty.label()
         ),
         font.clone(),
         30.0,
@@ -191,7 +197,12 @@ fn centered_top(top: f32) -> Node {
     }
 }
 
-fn show_menu(mut commands: Commands, asset_server: Res<AssetServer>, high_score: Res<HighScore>) {
+fn show_menu(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    high_score: Res<HighScore>,
+    difficulty: Res<Difficulty>,
+) {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
     spawn_text(
         &mut commands,
@@ -210,12 +221,25 @@ fn show_menu(mut commands: Commands, asset_server: Res<AssetServer>, high_score:
              BEST SCORE: {}\n\nPRESS ENTER TO START",
             high_score.0
         ),
-        font,
+        font.clone(),
         21.0,
         Color::srgb(0.88, 0.94, 0.90),
         centered_top(275.0),
         true,
     );
+    let menu_difficulty = spawn_text(
+        &mut commands,
+        &format!(
+            "DIFFICULTY:  [ {} ]     < / > TO CHANGE",
+            difficulty.label()
+        ),
+        font,
+        20.0,
+        SALAMANDER_ORANGE,
+        centered_top(500.0),
+        true,
+    );
+    commands.entity(menu_difficulty).insert(MenuDifficultyText);
 }
 
 fn show_pause(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -287,6 +311,32 @@ fn clear_screen(mut commands: Commands, query: Query<Entity, With<ScreenEntity>>
 fn menu_input(input: Res<ButtonInput<KeyCode>>, mut next_state: ResMut<NextState<GameState>>) {
     if input.just_pressed(KeyCode::Enter) || input.just_pressed(KeyCode::Space) {
         next_state.set(GameState::Playing);
+    }
+}
+
+fn menu_difficulty_input(
+    input: Res<ButtonInput<KeyCode>>,
+    mut difficulty: ResMut<Difficulty>,
+    mut query: Query<&mut Text, With<MenuDifficultyText>>,
+) {
+    let changed = if input.just_pressed(KeyCode::ArrowRight) {
+        *difficulty = difficulty.next();
+        true
+    } else if input.just_pressed(KeyCode::ArrowLeft) {
+        // Two forward steps equals one step back across three options.
+        *difficulty = difficulty.next().next();
+        true
+    } else {
+        false
+    };
+
+    if changed {
+        for mut text in &mut query {
+            *text = Text::new(format!(
+                "DIFFICULTY:  [ {} ]     < / > TO CHANGE",
+                difficulty.label()
+            ));
+        }
     }
 }
 

@@ -113,6 +113,7 @@ fn start_round_if_needed(
         high_score.0,
         level.0,
         definition,
+        *difficulty,
     );
     spawn_player(&mut commands, &asset_server, player_atlas.0.clone());
     spawn_fireflies(
