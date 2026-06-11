@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     effects::{PlayerHitEffect, SplashEffect},
     game::{GameState, GameplayEntity, HitCooldown, Lives, Score, SessionActive},
-    level::CurrentLevel,
+    level::{CurrentLevel, Difficulty},
     player::{HitFlash, Player},
     util::random_range,
 };
@@ -34,11 +34,12 @@ fn spawn_raindrops(
     time: Res<Time>,
     mut rain_timer: ResMut<RainTimer>,
     level: Res<CurrentLevel>,
+    difficulty: Res<Difficulty>,
 ) {
     rain_timer
         .0
         .set_duration(std::time::Duration::from_secs_f32(
-            level.definition().rain_interval,
+            level.definition_with(*difficulty).rain_interval,
         ));
     rain_timer.0.tick(time.delta());
 
@@ -65,8 +66,9 @@ fn move_raindrops(
     time: Res<Time>,
     score: Res<Score>,
     level: Res<CurrentLevel>,
+    difficulty: Res<Difficulty>,
 ) {
-    let speed = level.definition().rain_speed + score.0 as f32 * 18.0;
+    let speed = level.definition_with(*difficulty).rain_speed + score.0 as f32 * 18.0;
 
     for (entity, mut transform, raindrop) in &mut rain_query {
         transform.translation.y -= (speed + raindrop.speed_offset) * time.delta_secs();

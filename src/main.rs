@@ -16,7 +16,7 @@ use constants::NIGHT_SKY;
 use effects::EffectsPlugin;
 use firefly::FireflyPlugin;
 use game::{load_high_score, GamePlugin, GameState, HighScore};
-use level::CurrentLevel;
+use level::{CurrentLevel, Difficulty};
 use player::PlayerPlugin;
 use rain::RainPlugin;
 use ui::UiPlugin;
@@ -26,6 +26,7 @@ fn main() {
         .insert_resource(ClearColor(NIGHT_SKY))
         .insert_resource(HighScore(load_high_score()))
         .init_resource::<CurrentLevel>()
+        .init_resource::<Difficulty>()
         .add_plugins(DefaultPlugins.set(WindowPlugin {
             primary_window: Some(Window {
                 title: "Salamander Rain Dash".into(),

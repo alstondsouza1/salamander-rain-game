@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     firefly::{spawn_fireflies, FireflyAtlas},
-    level::CurrentLevel,
+    level::{CurrentLevel, Difficulty},
     player::{spawn_player, PlayerAtlas},
     rain::RainTimer,
     ui::spawn_hud,
@@ -84,6 +84,7 @@ fn start_round_if_needed(
     mut rain_timer: ResMut<RainTimer>,
     high_score: Res<HighScore>,
     level: Res<CurrentLevel>,
+    difficulty: Res<Difficulty>,
     player_atlas: Res<PlayerAtlas>,
     firefly_atlas: Res<FireflyAtlas>,
     old_entities: Query<Entity, With<GameplayEntity>>,
@@ -99,7 +100,10 @@ fn start_round_if_needed(
     let definition = level.definition();
     score.0 = 0;
     lives.0 = definition.starting_lives;
-    rain_timer.0 = Timer::from_seconds(definition.rain_interval, TimerMode::Repeating);
+    rain_timer.0 = Timer::from_seconds(
+        level.definition_with(*difficulty).rain_interval,
+        TimerMode::Repeating,
+    );
     let cooldown_duration = cooldown.0.duration();
     cooldown.0.set_elapsed(cooldown_duration);
 
